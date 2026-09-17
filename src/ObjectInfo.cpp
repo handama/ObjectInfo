@@ -25,6 +25,7 @@ bool bTriggerDebugPageEnd = false;
 bool bTriggerDebugDetailed = false;
 bool bTriggerDebugEdited = false;
 bool bTriggerDebugTimerEdited = false;
+bool bTriggerExecuteLog = false;
 
 char FinalStringBuffer[0x1000];
 wchar_t FinalStringBufferW[0x1000];
@@ -520,6 +521,35 @@ public:
 	}
 };
 
+class TriggerExecuteLogClass : public CommandClass
+{
+public:
+	//CommandClass
+	virtual const char* GetName() const override
+	{
+		return "Log Trigger Execute";
+	}
+	virtual const wchar_t* GetUIName() const override
+	{
+		return GeneralUtils::LoadStringUnlessMissing("TXT_TRIGGER_EXECUTE_LOG", L"Log Trigger Execute");
+	}
+
+	virtual const wchar_t* GetUICategory() const override
+	{
+		return GeneralUtils::LoadStringUnlessMissing("TXT_DEVELOPMENT", L"Development");
+	}
+
+	virtual const wchar_t* GetUIDescription() const override
+	{
+		return GeneralUtils::LoadStringUnlessMissing("TXT_TRIGGER_EXECUTE_LOG_DESC", L"Log each executed trigger's frame and name to debug.log.");
+	}
+
+	virtual void Execute(DWORD dwUnk) const override
+	{
+		bTriggerExecuteLog = !bTriggerExecuteLog;
+	}
+};
+
 class TriggerDebugClass : public CommandClass
 {
 public:
@@ -619,6 +649,7 @@ DEFINE_HOOK(533066, CommandClassCallback_Register, 6)
 	MakeCommand<ObjectInfoClass>();
 	MakeCommand<ObjectInfoChangeClass>();
 	MakeCommand<TriggerInfoClass>();
+	MakeCommand<TriggerExecuteLogClass>();
 	MakeCommand<TriggerDebugClass>();
 	MakeCommand<TriggerDebugPageUpClass>();
 	MakeCommand<TriggerDebugPageDownClass>();
@@ -1988,7 +2019,6 @@ DEFINE_HOOK(693268, ScrollClass_WindowsProcedure_ReleaseLeftMouseButton, 5)
 	{
 		bPressedInButtonsLayer = false;
 		R->Stack(STACK_OFFS(0x28, 0x8), 0);
-		R->EAX(Action::None);
 		return SkipGameCode;
 	}
 
@@ -2019,6 +2049,13 @@ DEFINE_HOOK(7265D1, TriggerClass_FireActions, 5)
 	GET(TriggerClass*, pTrigger, EDI);
 	TriggerExtMap[pTrigger].LastExecutedFrame = Unsorted::CurrentFrame;
 	TriggerExtMap[pTrigger].ExecutedCount++;
+
+	if (bTriggerExecuteLog && pTrigger->Type)
+	{
+		Log("[Trigger Execute] Frame: %d, Trigger: %s (%s)\n",
+			Unsorted::CurrentFrame, pTrigger->Type->get_ID(), pTrigger->Type->Name);
+	}
+
 	return 0;
 }
 
